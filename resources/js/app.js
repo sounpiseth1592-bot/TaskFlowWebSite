@@ -334,9 +334,19 @@ if (page.classList.contains('app-page')) {
 
         const visible = filteredTasks();
         els.visible_count.textContent = String(visible.length);
-        if (!visible.length) {
+        if (state.initialLoading) {
+            els.task_list.setAttribute('aria-busy', 'true');
+            els.task_list.innerHTML = `
+                <div class="workspace-loading" role="status">
+                    <span class="workspace-loading-title">Loading your workspace…</span>
+                    <span class="workspace-loading-line"></span>
+                    <span class="workspace-loading-line short"></span>
+                </div>`;
+        } else if (!visible.length) {
+            els.task_list.setAttribute('aria-busy', 'false');
             els.task_list.innerHTML = `<div class="empty-state"><div class="empty-illustration">${state.filter === 'done' ? '✓' : '✦'}</div><h3>${state.filter === 'done' ? 'Nothing completed just yet' : 'A little space to breathe'}</h3><p>${state.filter === 'done' ? 'Tasks you finish will find their way here.' : 'Add a task and take the first step.'}</p><button class="button primary" id="empty-add-task">＋ Add a task</button></div>`;
         } else {
+            els.task_list.setAttribute('aria-busy', 'false');
             els.task_list.innerHTML = visible.map(task => {
                 const project = state.projects.find(item => Number(item.id) === Number(task.project_id));
                 const due = dateLabel(task.due_date);
@@ -357,24 +367,58 @@ if (page.classList.contains('app-page')) {
     }
 
     async function cacheRemote() {
+        setSyncStatus('Syncing…', 'syncing');
         try {
-            setSyncStatus('Syncing…', 'syncing');
             const [projectResult, taskResult] = await Promise.all([api('/projects'), api('/tasks')]);
             state.projects = projectResult.data;
             state.tasks = taskResult.data;
+        } catch (error) {
+            if (error.status === 401 || error.status === 403) {
+                state.projects = [];
+                state.tasks = [];
+                state.initialLoading = false;
+                render();
+                setSyncStatus('Sign in again to sync', 'offline');
+                notify(error.message);
+                return;
+            }
+
+            try {
+                [state.projects, state.tasks] = await Promise.all([all('projects'), all('tasks')]);
+                state.initialLoading = false;
+                setSyncStatus(navigator.onLine ? 'Sync needs attention' : 'Working offline', 'offline');
+                if (navigator.onLine) notify(`Could not refresh workspace data: ${error.message}`);
+            } catch (storageError) {
+                state.projects = [];
+                state.tasks = [];
+                state.initialLoading = false;
+                setSyncStatus('Workspace could not load', 'offline');
+                notify(`Could not load workspace data: ${storageError.message}`);
+            }
+
+            render();
+            return;
+        }
+
+        state.initialLoading = false;
+        render();
+
+        try {
             await clear('projects');
             await clear('tasks');
             for (const project of state.projects) await put('projects', project);
             for (const task of state.tasks) await put('tasks', task);
-            await syncQueue();
-            setSyncStatus('All changes saved');
         } catch (error) {
-            if (navigator.onLine) notify(error.message);
-            state.projects = await all('projects');
-            state.tasks = await all('tasks');
-            setSyncStatus('Working offline', 'offline');
+            notify(`Workspace loaded, but offline data could not be saved: ${error.message}`);
         }
-        render();
+
+        try {
+            await syncQueue();
+            if ((await all('queue')).length === 0) setSyncStatus('All changes saved');
+        } catch (error) {
+            setSyncStatus('Sync needs attention', 'offline');
+            notify(`Could not sync saved changes: ${error.message}`);
+        }
     }
 
     async function enqueue(projectId, method, taskId, body) {
