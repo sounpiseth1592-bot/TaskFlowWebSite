@@ -1,0 +1,17 @@
+{
+    "name": "TaskFlow",
+    "short_name": "TaskFlow",
+    "description": "A little more focus, every day.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f8f8fb",
+    "theme_color": "#f8f8fb",
+    "icons": [
+        {
+            "src": "/taskflow-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
