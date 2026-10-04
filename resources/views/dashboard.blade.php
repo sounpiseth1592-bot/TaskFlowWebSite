@@ -23,7 +23,7 @@
     <div class="app-layout">
         <aside class="sidebar" id="sidebar">
             <a class="brand" href="{{ route('workspace.index') }}"><span class="brand-mark">t</span> taskflow</a>
-            <button class="button primary new-task-side" id="new-task-side"><span>＋</span> New task <kbd>N</kbd></button>
+            <button class="button primary new-task-side" id="new-task-side"><span></span> New task <kbd>N</kbd></button>
             <p class="nav-label">WORKSPACE</p>
             <nav class="main-nav" aria-label="Task filters">
                 <a class="nav-item {{ $workspaceFilter === 'all' && ! $workspaceProject ? 'active' : '' }}" href="{{ route('workspace.index') }}" data-filter="all"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></span> All tasks <span class="nav-count" id="count-all">0</span></a>
@@ -31,7 +31,7 @@
                 <a class="nav-item {{ $workspaceFilter === 'overdue' && ! $workspaceProject ? 'active' : '' }}" href="{{ route('workspace.overdue') }}" data-filter="overdue"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M4 10h16m-8 3v3m0-3h.01"/></svg></span> Overdue <span class="nav-count" id="count-overdue">0</span></a>
                 <a class="nav-item {{ $workspaceFilter === 'done' && ! $workspaceProject ? 'active' : '' }}" href="{{ route('workspace.completed') }}" data-filter="done"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg></span> Completed</a>
             </nav>
-            <div class="project-heading"><p class="nav-label">YOUR PROJECTS</p><button class="icon-button" id="add-project" aria-label="Add project">＋</button></div>
+            <div class="project-heading"><p class="nav-label">YOUR PROJECTS</p><button class="icon-button" id="add-project" aria-label="Add project">+</button></div>
             <nav class="project-nav" id="project-nav" aria-label="Projects"></nav>
         </aside>
         <main class="main-content">
@@ -59,7 +59,7 @@
             <section class="content-area">
                 <div class="page-heading">
                     <div><p class="eyebrow" id="date-label"></p><h1 id="page-title">All tasks</h1><p class="muted" id="page-subtitle">A clear mind starts with a clear plan.</p></div>
-                    <button class="button primary" id="new-task"><span>＋</span> Add a task</button>
+                    <button class="button primary" id="new-task"><span></span> Add a task</button>
                 </div>
                 <div class="overview-strip" id="overview-strip">
                     <div class="overview-card"><span class="overview-icon purple"><img src="{{ $workspaceIcons['projects'] }}" alt="" width="36" height="36"></span><div><small>Projects</small><strong id="overview-projects">0</strong></div></div>
@@ -72,7 +72,7 @@
                 <section class="workspace-dashboard hidden" id="workspace-dashboard" aria-labelledby="workspace-dashboard-title">
                     <div class="workspace-dashboard-heading">
                         <div><h2 id="workspace-dashboard-title">Project progress</h2><p>See every project and its task progress at a glance.</p></div>
-                        <button class="button secondary" type="button" id="dashboard-add-project"><span>＋</span> New project</button>
+                        <button class="button secondary" type="button" id="dashboard-add-project"><span></span> New project</button>
                     </div>
                     <div class="workspace-project-grid" id="workspace-project-grid" aria-live="polite"></div>
                 </section>

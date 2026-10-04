@@ -32,7 +32,7 @@
                 </a>
             @else
                 <a class="landing-sign-in" href="{{ route('login') }}">Sign in</a>
-                <a class="button primary landing-register" href="{{ route('register') }}">Register <span aria-hidden="true">↗</span></a>
+                <a class="button primary landing-register" href="{{ route('register') }}">Register <span aria-hidden="true"></span></a>
             @endauth
         </div>
     </header>
@@ -45,14 +45,14 @@
                 <p class="landing-hero-description">Your ideas, projects, and everyday tasks — together in one thoughtful space. Plan a little. Breathe a lot.</p>
                 <div class="landing-hero-actions">
                     @auth
-                        <a class="button primary landing-cta" href="{{ route('home') }}">Get started <span aria-hidden="true">→</span></a>
+                        <a class="button primary landing-cta" href="{{ route('home') }}">Get started <span aria-hidden="true"></span></a>
                     @else
-                        <a class="button primary landing-cta" href="{{ route('register') }}">Get started <span aria-hidden="true">→</span></a>
+                        <a class="button primary landing-cta" href="{{ route('register') }}">Get started <span aria-hidden="true"></span></a>
                     @endauth
-                    <a class="landing-text-link" href="{{ route('landing.how-it-works') }}"><span class="landing-play-icon" aria-hidden="true">▶</span> See how it works</a>
+                    <a class="landing-text-link" href="{{ route('landing.how-it-works') }}"><span class="landing-play-icon" aria-hidden="true"></span> See how it works</a>
                 </div>
                 <div class="landing-proof">
-                    <div class="landing-proof-avatars" aria-hidden="true"><span>A</span><span>M</span><span>J</span><span>+</span></div>
+                    <div class="landing-proof-avatars" aria-hidden="true"><span>A</span><span>M</span><span>J</span><span></span></div>
                     <p><strong>A little more focus,</strong><br>one day at a time.</p>
                 </div>
             </div>
@@ -126,7 +126,7 @@
                 <h2 id="how-title">Start where you are.</h2>
                 <p>No complicated setup. Just a few small steps to make your day feel more manageable.</p>
                 @auth
-                    <a class="button primary landing-cta" href="{{ route('home') }}">Open your workspace <span aria-hidden="true">→</span></a>
+                    <a class="button primary landing-cta" href="{{ route('home') }}">Open your workspace <span aria-hidden="true"></span></a>
                 @else
                     <a class="button primary landing-cta" href="{{ route('register') }}">Create your free account <span aria-hidden="true">→</span></a>
                 @endauth
@@ -162,9 +162,9 @@
                     <li><span>✓</span> <span data-copy-en="Your tasks and projects, together" data-copy-km="កិច្ចការ និងគម្រោងរបស់អ្នកនៅជាមួយគ្នា">Your tasks and projects, together</span></li>
                 </ul>
                 @auth
-                    <a class="landing-text-link landing-about-link" href="{{ route('home') }}"><span data-copy-en="Go to your workspace" data-copy-km="ទៅកាន់កន្លែងធ្វើការរបស់អ្នក">Go to your workspace</span> <span aria-hidden="true">→</span></a>
+                    <a class="landing-text-link landing-about-link" href="{{ route('home') }}"><span data-copy-en="Go to your workspace" data-copy-km="ទៅកាន់កន្លែងធ្វើការរបស់អ្នក">Go to your workspace</span> <span aria-hidden="true"></span></a>
                 @else
-                    <a class="landing-text-link landing-about-link" href="{{ route('register') }}"><span data-copy-en="Make a little room" data-copy-km="បង្កើតកន្លែងតូចមួយ">Make a little room</span> <span aria-hidden="true">→</span></a>
+                    <a class="landing-text-link landing-about-link" href="{{ route('register') }}"><span data-copy-en="Make a little room" data-copy-km="បង្កើតកន្លែងតូចមួយ">Make a little room</span> <span aria-hidden="true"></span></a>
                 @endauth
             </div>
         </section>
@@ -172,9 +172,9 @@
         <section class="landing-contact" id="contact" aria-labelledby="contact-title" data-reveal>
             <div><p class="landing-kicker">ONE STEP IS ENOUGH</p><h2 id="contact-title">Ready for a calmer kind of productive?</h2><p>Start with what matters today. You can figure out the rest as you go.</p></div>
             @auth
-                <a class="button landing-contact-button" href="{{ route('home') }}">Go to TaskFlow <span aria-hidden="true">→</span></a>
+                <a class="button landing-contact-button" href="{{ route('home') }}">Go to TaskFlow <span aria-hidden="true"></span></a>
             @else
-                <a class="button landing-contact-button" href="{{ route('register') }}">Get started free <span aria-hidden="true">→</span></a>
+                <a class="button landing-contact-button" href="{{ route('register') }}">Get started free <span aria-hidden="true"></span></a>
             @endauth
         </section>
     </main>
