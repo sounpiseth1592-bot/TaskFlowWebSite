@@ -19,6 +19,25 @@ php artisan serve
 
 Open [http://localhost:8000](http://localhost:8000), create an account, and add a project to get started. For local development with asset hot reloading, run `npm run dev` in a second terminal.
 
+## Deploy a free preview to Render
+
+The root-level `render.yaml` defines a Docker web service and a PostgreSQL database in Singapore. From Render, create a Blueprint and connect this repository; keep the Blueprint root directory set to the repository root.
+
+Render will prompt for `APP_KEY`, `APP_URL`, and `ADMIN_EMAIL`. Generate an application key with `php artisan key:generate --show`, enter it directly in Render, and set `APP_URL` to the HTTPS URL Render assigns to the service. Do not put these values in `render.yaml` or commit them. Register the account whose email matches `ADMIN_EMAIL` to access the admin dashboard.
+
+This free preview is not durable storage: Render's free filesystem is ephemeral, so uploaded profile photos can disappear after a restart or redeploy. Render's free PostgreSQL database expires 30 days after creation and is deleted after a further 14-day grace period unless upgraded. Do not use this configuration for production or valuable user data. Choose a paid persistent storage/database setup before public production use.
+
+The current local `main` branch has a commit that is not pushed to GitHub yet. The rejected push used invalid HTTPS credentials. On macOS with Homebrew, sign in without sharing a token:
+
+```bash
+brew install gh
+gh auth login --hostname github.com --git-protocol https --web
+gh auth setup-git
+git push origin main
+```
+
+Alternatively, configure an SSH key for GitHub and switch the remote to SSH. Never paste a GitHub token into chat or commit it to the repository.
+
 ## What is included
 
 - Email and password registration, sign-in, and sign-out.
