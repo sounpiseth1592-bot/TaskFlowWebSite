@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Api\AssetController;
+use App\Http\Resources\AccountResource;
 use App\Http\Resources\UserResource;
 use App\Mail\GoogleLoginNotificationMail;
 use App\Models\Project;
@@ -30,6 +32,10 @@ class TaskFlowController extends Controller
             return view('home');
         }
 
+        if (Auth::user()->can('access-admin')) {
+            return redirect()->route('admin.index');
+        }
+
         return $this->workspaceView();
     }
 
@@ -54,6 +60,7 @@ class TaskFlowController extends Controller
             'avatarPresets' => User::PROFILE_AVATAR_PRESETS,
             'workspaceFilter' => $filter,
             'workspaceProject' => $project,
+            'workspaceIcons' => AssetController::workspaceIconUrls(),
             'projectUrlTemplate' => route('workspace.projects.show', ['project' => '__PROJECT_ID__']),
         ]);
     }
@@ -81,6 +88,15 @@ class TaskFlowController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
+        if (
+            mb_strtolower(trim($data['email']))
+            === mb_strtolower((string) config('admin.email'))
+        ) {
+            return back()->withErrors([
+                'email' => 'This email is reserved for the configured administrator account.',
+            ])->onlyInput('email');
+        }
+
         $user = User::create([
             ...$data,
             'password' => Hash::make($data['password']),
@@ -105,22 +121,16 @@ class TaskFlowController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('home'));
+        return Auth::user()->can('access-admin')
+            ? redirect()->route('admin.index')
+            : redirect()->intended(route('home'));
     }
 
     public function redirectToGoogle(Request $request): JsonResponse|RedirectResponse
     {
         $expectsJson = $request->expectsJson() || $request->query('format') === 'json';
 
-        if ($expectsJson) {
-            $request->session()->put('google_auth_json_response', true);
-        } else {
-            $request->session()->forget('google_auth_json_response');
-        }
-
         if (! config('services.google.client_id') || ! config('services.google.client_secret')) {
-            $request->session()->forget('google_auth_json_response');
-
             if ($expectsJson) {
                 return response()->json([
                     'message' => 'Google sign-in is not configured.',
@@ -130,6 +140,18 @@ class TaskFlowController extends Controller
             return redirect()->route('login')->withErrors([
                 'google' => 'Google sign-in is not configured. Add GOOGLE_CLIENT_SECRET to the server environment.',
             ]);
+        }
+
+        if (! $request->hasSession()) {
+            return response()->json([
+                'message' => 'Google sign-in must be started from a browser session.',
+            ], 400);
+        }
+
+        if ($expectsJson) {
+            $request->session()->put('google_auth_json_response', true);
+        } else {
+            $request->session()->forget('google_auth_json_response');
         }
 
         $callback = parse_url(config('services.google.redirect'));
@@ -151,7 +173,23 @@ class TaskFlowController extends Controller
             return redirect()->away($origin.'/auth/google');
         }
 
-        return Socialite::driver('google')->redirect();
+        $googleDriver = Socialite::driver('google');
+
+        if ($expectsJson) {
+            $googleDriver->with([
+                'prompt' => 'consent select_account',
+                'access_type' => 'offline',
+            ]);
+        }
+
+        return $googleDriver->redirect();
+    }
+
+    public function redirectToGoogleApi(Request $request): JsonResponse|RedirectResponse
+    {
+        $request->query->set('format', 'json');
+
+        return $this->redirectToGoogle($request);
     }
 
     public function handleGoogleCallback(Request $request): JsonResponse|RedirectResponse
@@ -207,6 +245,15 @@ class TaskFlowController extends Controller
         }
 
         if (! $user) {
+            if (strcasecmp($email, (string) config('admin.email')) === 0) {
+                return $this->googleAuthError(
+                    $request,
+                    'The administrator account must be created through the server setup command.',
+                    403,
+                    $expectsJson,
+                );
+            }
+
             $user = User::create([
                 'name' => $googleUser->getName() ?: $email,
                 'email' => $email,
@@ -240,11 +287,13 @@ class TaskFlowController extends Controller
                 'access_token' => $token->plainTextToken,
                 'token_type' => 'Bearer',
                 'notification_sent' => $notificationSent,
-                'user' => UserResource::make($user)->resolve($request),
-            ]);
+                'user' => AccountResource::make($user)->resolve($request),
+            ])->header('Cache-Control', 'no-store, private');
         }
 
-        return redirect()->intended(route('home'));
+        return $user->can('access-admin')
+            ? redirect()->route('admin.index')
+            : redirect()->intended(route('home'));
     }
 
     public function logout(Request $request): RedirectResponse
@@ -421,6 +470,21 @@ class TaskFlowController extends Controller
 
     private function sendGoogleLoginNotification(User $user): bool
     {
+        $mailer = config('mail.default');
+        $mailerConfig = config("mail.mailers.{$mailer}", []);
+
+        if (
+            ($mailerConfig['transport'] ?? null) === 'smtp'
+            && strtolower($mailerConfig['host'] ?? '') === 'smtp.gmail.com'
+            && (! filled($mailerConfig['username'] ?? null) || ! filled($mailerConfig['password'] ?? null))
+        ) {
+            Log::warning('Google sign-in notification was skipped because Gmail SMTP credentials are missing. Configure MAIL_USERNAME and MAIL_PASSWORD with a Gmail address and Google App Password.', [
+                'user_id' => $user->id,
+            ]);
+
+            return false;
+        }
+
         try {
             Mail::to($user->email)->send(new GoogleLoginNotificationMail(
                 $user->name,
@@ -430,7 +494,7 @@ class TaskFlowController extends Controller
 
             return config('mail.default') !== 'log';
         } catch (TransportExceptionInterface $exception) {
-            Log::error('Google sign-in notification could not be delivered.', [
+            Log::warning('Google sign-in notification could not be delivered.', [
                 'user_id' => $user->id,
                 'exception' => $exception::class,
             ]);

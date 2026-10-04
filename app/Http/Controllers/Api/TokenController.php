@@ -3,19 +3,40 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\UserResource;
+use App\Http\Resources\AccountResource;
 use App\Models\User;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
     public function register(Request $request): JsonResponse
     {
+        $this->normalizeEmail($request);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (
+                        is_string($value)
+                        && (
+                            strcasecmp($value, (string) config('admin.email')) === 0
+                            || User::whereRaw('LOWER(email) = ?', [Str::lower($value)])->exists()
+                        )
+                    ) {
+                        $fail(strcasecmp($value, (string) config('admin.email')) === 0
+                            ? 'This email is reserved for the configured administrator account.'
+                            : 'The email has already been taken.');
+                    }
+                },
+            ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'device_name' => ['sometimes', 'string', 'max:100'],
         ]);
@@ -31,12 +52,14 @@ class TokenController extends Controller
 
     public function login(Request $request): JsonResponse
     {
+        $this->normalizeEmail($request);
+
         $data = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
             'device_name' => ['sometimes', 'string', 'max:100'],
         ]);
-        $user = User::where('email', $data['email'])->first();
+        $user = User::whereRaw('LOWER(email) = ?', [$data['email']])->first();
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
             return response()->json([
@@ -59,7 +82,16 @@ class TokenController extends Controller
             'message' => $status === 201 ? 'Account created successfully.' : 'Signed in successfully.',
             'access_token' => $token->plainTextToken,
             'token_type' => 'Bearer',
-            'user' => UserResource::make($user)->resolve($request),
+            'user' => AccountResource::make($user)->resolve($request),
         ], $status);
+    }
+
+    private function normalizeEmail(Request $request): void
+    {
+        $email = $request->input('email');
+
+        if (is_string($email)) {
+            $request->merge(['email' => Str::lower(trim($email))]);
+        }
     }
 }

@@ -27,7 +27,7 @@
         </nav>
         <div class="landing-account-links">
             @auth
-                <a class="landing-sign-in" href="{{ route('profile.edit') }}" aria-label="Account settings for {{ auth()->user()->email }}">
+                <a class="landing-sign-in" href="{{ route('profile.show') }}" aria-label="Profile for {{ auth()->user()->email }}">
                     Account · <span class="landing-account-email">{{ auth()->user()->email }}</span>
                 </a>
             @else

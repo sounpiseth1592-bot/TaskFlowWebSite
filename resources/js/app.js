@@ -1,6 +1,44 @@
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 const page = document.body;
 
+function initializeAccountMenu() {
+    const trigger = document.getElementById('account-menu-button');
+    const menu = document.getElementById('account-menu');
+    if (!trigger || !menu) return;
+
+    const closeMenu = () => {
+        menu.classList.add('hidden');
+        trigger.setAttribute('aria-expanded', 'false');
+    };
+
+    trigger.addEventListener('click', () => {
+        const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+        trigger.setAttribute('aria-expanded', String(!isExpanded));
+        menu.classList.toggle('hidden', isExpanded);
+    });
+    menu.addEventListener('click', event => {
+        if (event.target.closest('[role="menuitem"]')) closeMenu();
+    });
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.account-menu')) closeMenu();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || trigger.getAttribute('aria-expanded') !== 'true') return;
+        closeMenu();
+        trigger.focus();
+    });
+}
+
+function updateThemeToggle(button, isDark) {
+    const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+    const icon = button.querySelector('img');
+
+    button.setAttribute('aria-label', label);
+    button.setAttribute('title', label);
+    button.setAttribute('aria-pressed', String(isDark));
+    icon.src = isDark ? button.dataset.lightIcon : button.dataset.darkIcon;
+}
+
 function initializeProfileSettings(notify, onSaved) {
     const profileForm = document.getElementById('profile-form');
     if (!profileForm) return;
@@ -11,7 +49,12 @@ function initializeProfileSettings(notify, onSaved) {
     const profileInitial = document.getElementById('profile-preview-initial');
     const profileFile = document.getElementById('profile-avatar-file');
     const profileSaveStatus = document.getElementById('profile-save-status');
+    const accountAvatarImage = document.getElementById('user-avatar-image');
+    const accountAvatarInitial = document.getElementById('user-avatar-initial');
     let localPreviewUrl = '';
+    let profileDetailsChanged = false;
+
+    profilePhoto.referrerPolicy = 'no-referrer';
 
     function setProfileAvatar(action, photoUrl = '', preset = '', selectionChanged = true) {
         profileAction.value = action;
@@ -35,10 +78,17 @@ function initializeProfileSettings(notify, onSaved) {
             profilePhoto.src = photoUrl;
             profilePhoto.classList.remove('hidden');
             profileInitial.classList.add('hidden');
+            accountAvatarImage.src = photoUrl;
+            accountAvatarImage.classList.remove('hidden');
+            accountAvatarInitial.classList.add('hidden');
         } else {
             profilePhoto.removeAttribute('src');
             profilePhoto.classList.add('hidden');
             profileInitial.classList.remove('hidden');
+            accountAvatarImage.removeAttribute('src');
+            accountAvatarImage.classList.add('hidden');
+            accountAvatarInitial.textContent = (profileForm.elements.name.value.trim() || 'A').charAt(0).toUpperCase();
+            accountAvatarInitial.classList.remove('hidden');
         }
         if (selectionChanged) profileSaveStatus.textContent = 'Unsaved changes';
     }
@@ -47,8 +97,14 @@ function initializeProfileSettings(notify, onSaved) {
     const initialAvatarPreset = profileForm.dataset.avatarPreset;
     const initialAvatarUrl = page.dataset.profilePhotoUrl || '';
     profileForm.elements.name.addEventListener('input', () => {
+        profileDetailsChanged = true;
         document.getElementById('profile-summary-name').textContent = profileForm.elements.name.value;
         profileInitial.textContent = (profileForm.elements.name.value.trim() || 'A').charAt(0).toUpperCase();
+        accountAvatarInitial.textContent = (profileForm.elements.name.value.trim() || 'A').charAt(0).toUpperCase();
+        profileSaveStatus.textContent = 'Unsaved changes';
+    });
+    profileForm.elements.description.addEventListener('input', () => {
+        profileDetailsChanged = true;
         profileSaveStatus.textContent = 'Unsaved changes';
     });
     document.querySelectorAll('[data-avatar-preset]').forEach(button => button.addEventListener('click', () => {
@@ -64,12 +120,63 @@ function initializeProfileSettings(notify, onSaved) {
         profileFile.value = '';
         setProfileAvatar('initials');
     });
-    profileFile.addEventListener('change', () => {
+    profileFile.addEventListener('change', async () => {
         const file = profileFile.files[0];
         if (!file) return;
         if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
         localPreviewUrl = URL.createObjectURL(file);
         setProfileAvatar('upload', localPreviewUrl);
+
+        if (!navigator.onLine) {
+            profileSaveStatus.textContent = 'Photo preview ready. Connect to the internet to upload it.';
+            notify('Profile photos can only be uploaded while online.');
+            return;
+        }
+
+        const uploadButton = document.getElementById('profile-upload-trigger');
+        const saveButton = document.getElementById('save-profile');
+        profileFile.disabled = true;
+        uploadButton.setAttribute('aria-disabled', 'true');
+        saveButton.disabled = true;
+        saveButton.textContent = 'Uploading photo…';
+        profileSaveStatus.textContent = 'Uploading photo…';
+
+        try {
+            const formData = new FormData();
+            formData.append('avatar_action', 'upload');
+            formData.append('avatar_file', file);
+            const response = await fetch(profileForm.action, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf },
+                body: formData,
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || Object.values(result.errors || {})[0]?.[0] || `Request failed (${response.status}).`);
+            }
+
+            page.dataset.profilePhotoUrl = result.user.avatar_url || '';
+            if (localPreviewUrl) {
+                URL.revokeObjectURL(localPreviewUrl);
+                localPreviewUrl = '';
+            }
+            profileFile.value = '';
+            setProfileAvatar(result.user.avatar_action, result.user.avatar_url || '', result.user.avatar_preset || '', false);
+            profileSaveStatus.textContent = profileDetailsChanged
+                ? 'Photo uploaded. Save your other profile changes separately.'
+                : 'Photo uploaded and saved.';
+            onSaved(result.user);
+            notify('Profile photo uploaded');
+        } catch (error) {
+            profileSaveStatus.textContent = 'Photo upload failed. Save profile to retry.';
+            notify(`Photo upload failed: ${error.message}`);
+        } finally {
+            profileFile.disabled = false;
+            uploadButton.removeAttribute('aria-disabled');
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save profile';
+        }
     });
     profileForm.addEventListener('submit', async event => {
         event.preventDefault();
@@ -96,6 +203,8 @@ function initializeProfileSettings(notify, onSaved) {
             page.dataset.userName = result.user.name;
             page.dataset.profilePhotoUrl = result.user.avatar_url || '';
             profileForm.elements.name.value = result.user.name;
+            profileForm.elements.description.value = result.user.description || '';
+            profileDetailsChanged = false;
             document.getElementById('profile-summary-name').textContent = result.user.name;
             profileInitial.textContent = (result.user.name.trim() || 'A').charAt(0).toUpperCase();
             if (localPreviewUrl) {
@@ -178,8 +287,10 @@ if (page.classList.contains('landing-page')) {
 }
 
 if (page.classList.contains('app-page')) {
+    initializeAccountMenu();
     const email = page.dataset.userEmail || '';
     const dbName = `taskflow-${email.toLowerCase()}`;
+    const apiBase = '/api';
     const filters = ['all', 'today', 'overdue', 'done'];
     const state = {
         projects: [],
@@ -187,6 +298,7 @@ if (page.classList.contains('app-page')) {
         filter: page.dataset.workspaceFilter || 'all',
         projectId: page.dataset.workspaceProjectId ? Number(page.dataset.workspaceProjectId) : null,
         sortAsc: true,
+        initialLoading: true,
     };
     const openDb = () => new Promise((resolve, reject) => {
         const request = indexedDB.open(dbName, 1);
@@ -214,7 +326,7 @@ if (page.classList.contains('app-page')) {
     const remove = (name, key) => store(name, 'readwrite', objectStore => objectStore.delete(key));
     const clear = name => store(name, 'readwrite', objectStore => objectStore.clear());
     const api = async (url, method = 'GET', body = null) => {
-        const response = await fetch(url, {
+        const response = await fetch(`${apiBase}${url}`, {
             method,
             credentials: 'same-origin',
             headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
@@ -222,13 +334,16 @@ if (page.classList.contains('app-page')) {
         });
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || Object.values(error.errors || {})[0]?.[0] || `Request failed (${response.status}).`);
+            const requestError = new Error(error.message || Object.values(error.errors || {})[0]?.[0] || `Request failed (${response.status}).`);
+            requestError.status = response.status;
+            throw requestError;
         }
         return response.status === 204 ? null : response.json();
     };
     const els = Object.fromEntries([
         'project-nav', 'task-list', 'page-title', 'page-subtitle', 'date-label', 'list-heading', 'visible-count',
-        'count-all', 'count-today', 'count-overdue', 'overview-today', 'overview-overdue', 'overview-done',
+        'count-all', 'count-today', 'count-overdue', 'overview-projects', 'overview-all', 'overview-open',
+        'overview-today', 'overview-overdue', 'overview-done', 'workspace-dashboard', 'workspace-project-grid',
         'sync-status', 'task-modal', 'project-modal', 'task-form', 'project-form', 'toast',
         'current-section',
     ].map(id => [id.replaceAll('-', '_'), document.getElementById(id)]));
@@ -292,6 +407,7 @@ if (page.classList.contains('app-page')) {
         const avatarInitial = (page.dataset.userName || 'A').trim().charAt(0).toUpperCase();
         document.getElementById('user-avatar-initial').textContent = avatarInitial;
         const avatarImage = document.getElementById('user-avatar-image');
+        avatarImage.referrerPolicy = 'no-referrer';
         if (page.dataset.profilePhotoUrl) {
             avatarImage.src = page.dataset.profilePhotoUrl;
             avatarImage.classList.remove('hidden');
@@ -307,22 +423,51 @@ if (page.classList.contains('app-page')) {
         const todayCount = tasks.filter(task => !task.done && dateKey(task.due_date) === today).length;
         const lateCount = tasks.filter(task => !task.done && task.due_date && dateKey(task.due_date) < today).length;
         const doneCount = tasks.filter(task => task.done).length;
+        const openCount = tasks.length - doneCount;
         els.count_all.textContent = String(tasks.filter(task => !task.done).length);
         els.count_today.textContent = String(todayCount);
         els.count_overdue.textContent = String(lateCount);
+        els.overview_projects.textContent = String(state.projects.length);
+        els.overview_all.textContent = String(tasks.length);
+        els.overview_open.textContent = String(openCount);
         els.overview_today.textContent = `${todayCount} ${todayCount === 1 ? 'task' : 'tasks'}`;
         els.overview_overdue.textContent = `${lateCount} ${lateCount === 1 ? 'task' : 'tasks'}`;
         els.overview_done.textContent = `${doneCount} ${doneCount === 1 ? 'task' : 'tasks'}`;
 
         const activeProject = state.projects.find(project => Number(project.id) === Number(state.projectId));
-        els.project_nav.innerHTML = state.projects.map(project => `
+        const showDashboard = !state.initialLoading && !activeProject && state.filter === 'all';
+        els.workspace_dashboard.classList.toggle('hidden', !showDashboard);
+        els.project_nav.innerHTML = state.projects.length ? state.projects.map(project => `
             <div class="project-row">
                 <a class="nav-item project-item ${activeProject?.id === project.id ? 'active' : ''}" data-project="${project.id}" href="${page.dataset.projectUrlTemplate.replace('__PROJECT_ID__', encodeURIComponent(project.id))}">
                     <span class="project-dot" style="background:${safe(project.color)}"></span>
                     <span>${safe(project.name)}</span><span class="nav-count">${state.tasks.filter(task => Number(task.project_id) === Number(project.id) && !task.done).length}</span>
                 </a>
                 <button class="icon-button project-edit" data-edit-project="${project.id}" aria-label="Edit ${safe(project.name)}">···</button>
-            </div>`).join('');
+            </div>`).join('') : '<p class="project-empty">No projects yet. Add one to get started.</p>';
+
+        els.workspace_project_grid.innerHTML = state.projects.length ? state.projects.map(project => {
+            const projectTasks = tasks.filter(task => Number(task.project_id) === Number(project.id));
+            const completedTasks = projectTasks.filter(task => task.done).length;
+            const completion = projectTasks.length ? Math.round(completedTasks / projectTasks.length * 100) : 0;
+            const projectUrl = page.dataset.projectUrlTemplate.replace('__PROJECT_ID__', encodeURIComponent(project.id));
+
+            return `<article class="workspace-project-card">
+                <a class="workspace-project-link" data-project="${project.id}" href="${projectUrl}">
+                    <span class="workspace-project-accent" style="background:${safe(project.color)}"></span>
+                    <span class="workspace-project-copy"><strong>${safe(project.name)}</strong><small>${projectTasks.length} ${projectTasks.length === 1 ? 'task' : 'tasks'} · ${completedTasks} complete</small></span>
+                    <span class="workspace-project-arrow" aria-hidden="true">↗</span>
+                </a>
+                <div class="workspace-progress" role="progressbar" aria-label="${safe(project.name)} completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}">
+                    <span style="width:${completion}%;background:${safe(project.color)}"></span>
+                </div>
+                <div class="workspace-project-footer"><span>${completion}% complete</span><a data-project="${project.id}" href="${projectUrl}">View tasks <span aria-hidden="true">→</span></a></div>
+            </article>`;
+        }).join('') : `<div class="workspace-project-empty">
+            <span class="workspace-empty-mark" aria-hidden="true">＋</span>
+            <div><strong>Start with a project</strong><p>Projects keep related tasks together and make progress easy to track.</p></div>
+            <button class="button primary" type="button" data-dashboard-add-project>Create a project</button>
+        </div>`;
 
         const titles = { all: ['All tasks', 'A clear mind starts with a clear plan.', 'Your tasks'], today: ['Today', 'Make today a good one.', 'Due today'], overdue: ['Overdue', 'A fresh start begins here.', 'Past due'], done: ['Completed', 'Look how far you’ve come.', 'Completed tasks'] };
         const title = activeProject?.name || titles[state.filter][0];
@@ -344,7 +489,16 @@ if (page.classList.contains('app-page')) {
                 </div>`;
         } else if (!visible.length) {
             els.task_list.setAttribute('aria-busy', 'false');
-            els.task_list.innerHTML = `<div class="empty-state"><div class="empty-illustration">${state.filter === 'done' ? '✓' : '✦'}</div><h3>${state.filter === 'done' ? 'Nothing completed just yet' : 'A little space to breathe'}</h3><p>${state.filter === 'done' ? 'Tasks you finish will find their way here.' : 'Add a task and take the first step.'}</p><button class="button primary" id="empty-add-task">＋ Add a task</button></div>`;
+            const emptyMessages = {
+                all: ['A little space to breathe', 'Add a task and take the first step.', '✦'],
+                today: ['Nothing due today', 'You have no tasks scheduled for today.', '◷'],
+                overdue: ['You’re all caught up', 'There are no past-due tasks right now.', '◴'],
+                done: ['Nothing completed just yet', 'Tasks you finish will find their way here.', '✓'],
+            };
+            const [emptyTitle, emptyDescription, emptyIcon] = activeProject
+                ? ['No project tasks yet', 'Add a task to get this project moving.', '✦']
+                : emptyMessages[state.filter];
+            els.task_list.innerHTML = `<div class="empty-state"><div class="empty-illustration">${emptyIcon}</div><h3>${emptyTitle}</h3><p>${emptyDescription}</p><button class="button primary" id="empty-add-task">＋ Add a task</button></div>`;
         } else {
             els.task_list.setAttribute('aria-busy', 'false');
             els.task_list.innerHTML = visible.map(task => {
@@ -555,7 +709,13 @@ if (page.classList.contains('app-page')) {
     function toggleTheme() {
         document.body.classList.toggle('dark');
         localStorage.setItem('taskflow-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-        document.getElementById('theme-button').textContent = document.body.classList.contains('dark') ? '☀' : '☾';
+        updateThemeButton();
+    }
+
+    function updateThemeButton() {
+        const isDark = document.body.classList.contains('dark');
+        const themeButton = document.getElementById('theme-button');
+        updateThemeToggle(themeButton, isDark);
     }
 
     function scheduleReminders() {
@@ -627,6 +787,10 @@ if (page.classList.contains('app-page')) {
         } catch (error) { notify(error.message); }
     });
     document.getElementById('add-project').addEventListener('click', () => openProject());
+    document.getElementById('dashboard-add-project').addEventListener('click', () => openProject());
+    els.workspace_project_grid.addEventListener('click', event => {
+        if (event.target.closest('[data-dashboard-add-project]')) openProject();
+    });
     els.project_form.addEventListener('submit', async event => {
         event.preventDefault();
         const form = new FormData(els.project_form);
@@ -667,7 +831,8 @@ if (page.classList.contains('app-page')) {
         if (event.key.toLowerCase() === 'n' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) openTask();
     });
 
-    if (localStorage.getItem('taskflow-theme') === 'dark') toggleTheme();
+    document.body.classList.toggle('dark', localStorage.getItem('taskflow-theme') === 'dark');
+    updateThemeButton();
     render();
     cacheRemote();
     scheduleReminders();
@@ -675,6 +840,7 @@ if (page.classList.contains('app-page')) {
 }
 
 if (page.classList.contains('settings-page')) {
+    initializeAccountMenu();
     let toastTimer;
 
     function notify(message) {
@@ -685,29 +851,33 @@ if (page.classList.contains('settings-page')) {
         toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
     }
 
-    const themeButton = document.getElementById('settings-theme');
+    const themeButtons = [...document.querySelectorAll('[data-theme-toggle]')];
+    const themePreferenceButton = document.getElementById('settings-theme');
     document.getElementById('settings-menu-toggle').addEventListener('click', () => {
         document.querySelector('.settings-page .sidebar').classList.toggle('open');
     });
     const syncThemeButton = () => {
         const isDark = page.classList.contains('dark');
-        themeButton.textContent = isDark ? 'Light mode' : 'Dark mode';
-        themeButton.setAttribute('aria-pressed', String(isDark));
+        themeButtons.forEach(button => updateThemeToggle(button, isDark));
+        if (themePreferenceButton) {
+            themePreferenceButton.textContent = isDark ? 'Light mode' : 'Dark mode';
+            themePreferenceButton.setAttribute('aria-pressed', String(isDark));
+        }
     };
     page.classList.toggle('dark', localStorage.getItem('taskflow-theme') === 'dark');
     syncThemeButton();
-    themeButton.addEventListener('click', () => {
+    [...themeButtons, themePreferenceButton].filter(Boolean).forEach(themeButton => themeButton.addEventListener('click', () => {
         page.classList.toggle('dark');
         localStorage.setItem('taskflow-theme', page.classList.contains('dark') ? 'dark' : 'light');
         syncThemeButton();
-    });
+    }));
 
     const reminderButton = document.getElementById('enable-reminders');
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if (reminderButton && 'Notification' in window && Notification.permission === 'granted') {
         reminderButton.textContent = 'Enabled';
         reminderButton.disabled = true;
     }
-    reminderButton.addEventListener('click', async () => {
+    reminderButton?.addEventListener('click', async () => {
         if (!('Notification' in window)) {
             notify('Notifications are not supported by this browser.');
             return;
@@ -723,17 +893,19 @@ if (page.classList.contains('settings-page')) {
     });
 
     initializeProfileSettings(notify, user => {
-        document.getElementById('settings-sidebar-name').textContent = user.name;
-        document.getElementById('settings-sidebar-initial').textContent = (user.name.trim() || 'A').charAt(0).toUpperCase();
-        const avatarImage = document.getElementById('settings-sidebar-image');
+        document.getElementById('user-name').textContent = user.name;
+        document.getElementById('user-email').textContent = user.email;
+        document.getElementById('user-avatar-initial').textContent = (user.name.trim() || 'A').charAt(0).toUpperCase();
+        const avatarImage = document.getElementById('user-avatar-image');
+        avatarImage.referrerPolicy = 'no-referrer';
         if (user.avatar_url) {
             avatarImage.src = user.avatar_url;
             avatarImage.classList.remove('hidden');
-            document.getElementById('settings-sidebar-initial').classList.add('hidden');
+            document.getElementById('user-avatar-initial').classList.add('hidden');
         } else {
             avatarImage.removeAttribute('src');
             avatarImage.classList.add('hidden');
-            document.getElementById('settings-sidebar-initial').classList.remove('hidden');
+            document.getElementById('user-avatar-initial').classList.remove('hidden');
         }
     });
 }

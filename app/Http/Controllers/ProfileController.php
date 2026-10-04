@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -24,15 +25,41 @@ class ProfileController extends Controller
     {
         return view('settings', [
             'user' => $request->user(),
+        ]);
+    }
+
+    public function show(Request $request): View
+    {
+        return view('profile', [
+            'user' => $request->user(),
             'avatarPresets' => User::PROFILE_AVATAR_PRESETS,
         ]);
+    }
+
+    public function createApiToken(Request $request): Response
+    {
+        $user = $request->user();
+        $tokenName = 'TaskFlow API token';
+
+        $newToken = $user->createToken($tokenName, ['*'], now()->addDays(30));
+
+        $user->tokens()
+            ->where('name', $tokenName)
+            ->where('id', '!=', $newToken->accessToken->getKey())
+            ->delete();
+
+        return response()->view('settings', [
+            'user' => $user,
+            'apiToken' => $newToken->plainTextToken,
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function update(Request $request): JsonResponse
     {
         $user = $request->user();
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
+            'name' => ['required_without:avatar_action', 'string', 'max:100'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:500'],
             'avatar_action' => ['sometimes', Rule::in(['preset', 'upload', 'google', 'initials'])],
             'avatar_preset' => [
                 'exclude_unless:avatar_action,preset',
@@ -69,7 +96,16 @@ class ProfileController extends Controller
             }
         }
 
-        $attributes = ['name' => trim($data['name'])];
+        $attributes = [];
+
+        if (array_key_exists('name', $data)) {
+            $attributes['name'] = trim($data['name']);
+        }
+
+        if (array_key_exists('description', $data)) {
+            $description = trim($data['description'] ?? '');
+            $attributes['description'] = $description === '' ? null : $description;
+        }
 
         if ($avatarAction !== null) {
             $attributes['avatar_preset'] = $avatarAction === 'preset' ? $data['avatar_preset'] : null;
@@ -86,6 +122,7 @@ class ProfileController extends Controller
             'user' => [
                 'name' => $user->name,
                 'email' => $user->email,
+                'description' => $user->description,
                 'avatar_action' => $user->profileAvatarSelection(),
                 'avatar_preset' => $user->avatar_preset,
                 'avatar_url' => $user->profilePhotoUrl(),

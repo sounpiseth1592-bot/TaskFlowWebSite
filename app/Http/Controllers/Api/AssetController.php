@@ -8,6 +8,32 @@ use Illuminate\Http\JsonResponse;
 
 class AssetController extends Controller
 {
+    /**
+     * @return array<string, string>
+     */
+    public static function workspaceIconPaths(): array
+    {
+        return [
+            'projects' => 'images/icons/Project_taskflow.png',
+            'tasks' => 'images/icons/Task_taskflow.png',
+            'in_progress' => 'images/icons/inProgress_taskflow.png',
+            'due_today' => 'images/icons/dueToday_taskflow.png',
+            'overdue' => 'images/icons/Passdue_taskflow.png',
+            'completed' => 'images/icons/complete_taskflow.png',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function workspaceIconUrls(): array
+    {
+        return array_map(
+            fn (string $path): string => asset($path),
+            self::workspaceIconPaths(),
+        );
+    }
+
     public function __invoke(): JsonResponse
     {
         $avatars = array_map(
@@ -34,11 +60,20 @@ class AssetController extends Controller
             array_keys($iconPaths),
             array_values($iconPaths),
         );
+        $workspace = array_map(
+            fn (string $name, string $path): array => [
+                'name' => $name,
+                'url' => asset($path),
+            ],
+            array_keys(self::workspaceIconPaths()),
+            array_values(self::workspaceIconPaths()),
+        );
 
         return response()->json([
             'data' => [
                 'avatars' => $avatars,
                 'icons' => $icons,
+                'workspace' => $workspace,
                 'images' => [
                     'welcome' => asset('images/taskflow-welcome.jpg'),
                     'favicon' => asset('favicon.ico'),

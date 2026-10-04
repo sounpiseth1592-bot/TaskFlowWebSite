@@ -40,7 +40,7 @@
                 @endif
                 <button class="button primary full" type="submit">{{ $mode === 'login' ? 'Sign in' : 'Create account' }} <span>→</span></button>
             </form>
-            @if (config('services.google.client_id') && $mode === 'login')
+            @if (config('services.google.client_id'))
                 <div class="auth-divider"><span>OR CONTINUE WITH</span></div>
                 <a class="button google-button full" href="{{ route('google.redirect') }}"><span class="google-g">G</span> Continue with Google</a>
             @endif

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TaskFlowController;
 use Illuminate\Support\Facades\Route;
@@ -14,11 +15,26 @@ Route::get('/register', [TaskFlowController::class, 'showRegister'])->name('regi
 Route::post('/auth/login', [TaskFlowController::class, 'login'])->middleware('guest');
 Route::post('/auth/register', [TaskFlowController::class, 'register'])->middleware('guest');
 Route::get('/auth/google', [TaskFlowController::class, 'redirectToGoogle'])->name('google.redirect')->middleware('guest');
-Route::get('/auth/google/callback', [TaskFlowController::class, 'handleGoogleCallback'])->name('google.callback')->middleware('guest');
+Route::get('/auth/google/token', [TaskFlowController::class, 'redirectToGoogleApi'])
+    ->name('google.api.redirect');
+Route::get('/auth/google/callback', [TaskFlowController::class, 'handleGoogleCallback'])->name('google.callback');
 Route::post('/logout', [TaskFlowController::class, 'logout'])->middleware('auth');
 
+Route::middleware(['auth', 'can:access-admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('index');
+    Route::patch('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
+    Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
+    Route::post('/users/{user}/token', [AdminController::class, 'createToken'])->name('users.token');
+    Route::patch('/projects/{project}', [AdminController::class, 'updateProject'])->name('projects.update');
+    Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->name('projects.destroy');
+    Route::patch('/tasks/{task}', [AdminController::class, 'updateTask'])->name('tasks.update');
+    Route::delete('/tasks/{task}', [AdminController::class, 'destroyTask'])->name('tasks.destroy');
+});
+
 Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/settings', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::post('/settings/api-token', [ProfileController::class, 'createApiToken'])->name('profile.api-token');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/workspace', [TaskFlowController::class, 'workspacePage'])->name('workspace.index');
     Route::get('/workspace/today', [TaskFlowController::class, 'workspacePage'])->defaults('filter', 'today')->name('workspace.today');
