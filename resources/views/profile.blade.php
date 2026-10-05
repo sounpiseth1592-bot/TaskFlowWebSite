@@ -15,7 +15,7 @@
     <div class="app-layout">
         <aside class="sidebar">
             <a class="brand" href="{{ route('home') }}"><span class="brand-mark">t</span> taskflow</a>
-            <a class="button primary new-task-side settings-back-link" href="{{ route('home') }}"><span>←</span> Back to tasks</a>
+            <a class="button primary new-task-side settings-back-link" href="{{ route('home') }}"><span></span> Back to tasks</a>
             <p class="nav-label">WORKSPACE</p>
             <nav class="main-nav" aria-label="Workspace navigation">
                 <a class="nav-item" href="{{ route('home') }}"><span class="nav-icon">▦</span> All tasks</a>
@@ -58,7 +58,7 @@
                         <div class="profile-summary">
                             <span class="profile-preview" id="profile-preview"><span id="profile-preview-initial" class="{{ $user->profilePhotoUrl() ? 'hidden' : '' }}">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</span><img id="profile-preview-image" class="{{ $user->profilePhotoUrl() ? '' : 'hidden' }}" src="{{ $user->profilePhotoUrl() }}" alt="" referrerpolicy="no-referrer"></span>
                             <div><strong id="profile-summary-name">{{ $user->name }}</strong><span>Profile photo</span></div>
-                            <label class="button secondary profile-upload-button" id="profile-upload-trigger" for="profile-avatar-file">Choose from device</label>
+                            <label class="button secondary profile-upload-button" id="profile-upload-trigger" for="profile-avatar-file"></label>
                             <input class="hidden" type="file" id="profile-avatar-file" name="avatar_file" accept="image/png,image/jpeg,image/webp" aria-label="Choose a profile photo from your device">
                         </div>
                         <label class="profile-field">Full name<input type="text" name="name" maxlength="100" value="{{ $user->name }}" autocomplete="name" required></label>
@@ -81,11 +81,11 @@
                         </fieldset>
                         <div class="profile-avatar-actions">
                             @if ($user->google_avatar_url)
-                                <button class="button secondary {{ $user->profileAvatarSelection() === 'google' ? 'is-selected' : '' }}" type="button" id="use-google-avatar" data-profile-avatar-choice="google" aria-pressed="{{ $user->profileAvatarSelection() === 'google' ? 'true' : 'false' }}">Use Google photo</button>
+                                <span class=" {{ $user->profileAvatarSelection() === 'google' ? 'is-selected' : '' }}" type="button" id="use-google-avatar" data-profile-avatar-choice="google" aria-pressed="{{ $user->profileAvatarSelection() === 'google' ? 'true' : 'false' }}"></span>
                             @endif
-                            <button class="button secondary {{ $user->profileAvatarSelection() === 'initials' ? 'is-selected' : '' }}" type="button" id="use-initials-avatar" data-profile-avatar-choice="initials" aria-pressed="{{ $user->profileAvatarSelection() === 'initials' ? 'true' : 'false' }}">Use initials</button>
+                            <span class="{{ $user->profileAvatarSelection() === 'initials' ? 'is-selected' : '' }}" type="button" id="use-initials-avatar" data-profile-avatar-choice="initials" aria-pressed="{{ $user->profileAvatarSelection() === 'initials' ? 'true' : 'false' }}"></span>
                         </div>
-                        <p class="profile-help">Choose a portrait, use your Google photo, or upload a JPG, PNG, or WebP photo from this device (up to 2 MB). Device photos upload automatically when selected. Save profile applies any other changes.</p>
+                        <!-- <p class="profile-help">Choose a portrait, use your Google photo, or upload a JPG, PNG, or WebP photo from this device (up to 2 MB). Device photos upload automatically when selected. Save profile applies any other changes.</p> -->
                         <div class="settings-form-actions"><span id="profile-save-status" role="status">Changes are saved when you choose Save profile.</span><button type="submit" class="button primary" id="save-profile">Save profile</button></div>
                     </form>
                 </section>

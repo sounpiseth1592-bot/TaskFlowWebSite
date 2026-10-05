@@ -97,25 +97,25 @@
                     <img src="{{ asset('images/icons/focus.svg') }}" alt="" width="52" height="52" loading="lazy">
                     <h3>Find your focus</h3>
                     <p>Keep today's priorities clear, with due dates and gentle reminders when you need them.</p>
-                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how to find your focus">Explore focus <span aria-hidden="true">→</span></a>
+                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how to find your focus">Explore focus <span aria-hidden="true"></span></a>
                 </article>
                 <article class="landing-feature-card" data-reveal>
                     <img src="{{ asset('images/icons/projects.svg') }}" alt="" width="52" height="52" loading="lazy">
                     <h3>Keep projects together</h3>
                     <p>Group related tasks in colorful projects and see the whole picture at a glance.</p>
-                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how to keep projects together">Explore projects <span aria-hidden="true">→</span></a>
+                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how to keep projects together">Explore projects <span aria-hidden="true"></span></a>
                 </article>
                 <article class="landing-feature-card" data-reveal>
                     <img src="{{ asset('images/icons/progress.svg') }}" alt="" width="52" height="52" loading="lazy">
                     <h3>Notice your progress</h3>
                     <p>Celebrate what you've finished and make a fresh plan for what comes next.</p>
-                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how to track your progress">Explore progress <span aria-hidden="true">→</span></a>
+                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how to track your progress">Explore progress <span aria-hidden="true"></span></a>
                 </article>
                 <article class="landing-feature-card" data-reveal>
                     <img src="{{ asset('images/icons/reminders.svg') }}" alt="" width="52" height="52" loading="lazy">
                     <h3>Work at your pace</h3>
                     <p>Stay on track with optional reminders, and keep working even when you're offline.</p>
-                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how TaskFlow helps you work at your pace">Explore reminders <span aria-hidden="true">→</span></a>
+                    <a href="{{ route('landing.how-it-works') }}" aria-label="Learn how TaskFlow helps you work at your pace">Explore reminders <span aria-hidden="true"></span></a>
                 </article>
             </div>
         </section>
@@ -128,7 +128,7 @@
                 @auth
                     <a class="button primary landing-cta" href="{{ route('home') }}">Open your workspace <span aria-hidden="true"></span></a>
                 @else
-                    <a class="button primary landing-cta" href="{{ route('register') }}">Create your free account <span aria-hidden="true">→</span></a>
+                    <a class="button primary landing-cta" href="{{ route('register') }}">Create your free account <span aria-hidden="true"></span></a>
                 @endauth
             </div>
             <ol class="landing-steps">
@@ -142,7 +142,7 @@
             <div class="landing-about-image" data-reveal>
                 <span class="landing-image-glow"></span>
                 <img src="{{ asset('images/taskflow-welcome.jpg') }}" alt="A friendly illustration welcoming you to TaskFlow" loading="lazy" data-copy-alt-en="A friendly illustration welcoming you to TaskFlow" data-copy-alt-km="រូបភាពគំនូរដ៏រួសរាយរាក់ទាក់ សូមស្វាគមន៍មកកាន់ TaskFlow">
-                <span class="landing-image-caption"><i>✦</i> <span data-copy-en="Soun Piseth · Cambodia" data-copy-km="សួន ពិសិដ្ឋ · កម្ពុជា">Soun Piseth · Cambodia</span></span>
+                <span class="landing-image-caption"><i></i> <span data-copy-en="Soun Piseth · Cambodia" data-copy-km="សួន ពិសិដ្ឋ · កម្ពុជា">Soun Piseth · Cambodia</span></span>
             </div>
             <div class="landing-about-copy" data-reveal lang="en" aria-live="polite">
                 <div class="landing-language-switch" role="group" aria-label="Choose language">
