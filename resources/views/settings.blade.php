@@ -15,7 +15,7 @@
     <div class="app-layout">
         <aside class="sidebar">
             <a class="brand" href="{{ route('home') }}"><span class="brand-mark">t</span> taskflow</a>
-            <a class="button primary new-task-side settings-back-link" href="{{ route('home') }}"><span>←</span> Back to tasks</a>
+            <a class="button primary new-task-side settings-back-link" href="{{ route('home') }}"><span></span> Back to tasks</a>
             <p class="nav-label">WORKSPACE</p>
             <nav class="main-nav" aria-label="Workspace navigation">
                 <a class="nav-item" href="{{ route('home') }}"><span class="nav-icon">▦</span> All tasks</a>
