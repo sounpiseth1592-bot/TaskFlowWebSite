@@ -59,7 +59,7 @@
             <section class="content-area">
                 <div class="page-heading">
                     <div><p class="eyebrow" id="date-label"></p><h1 id="page-title">All tasks</h1><p class="muted" id="page-subtitle">A clear mind starts with a clear plan.</p></div>
-                    <button class="button primary" id="new-task"><span></span> Add a task</button>
+                    <button class="button primary" id="new-task">Add a task</button>
                 </div>
                 <div class="overview-strip" id="overview-strip">
                     <div class="overview-card"><span class="overview-icon purple"><img src="{{ $workspaceIcons['projects'] }}" alt="" width="36" height="36"></span><div><small>Projects</small><strong id="overview-projects">0</strong></div></div>
@@ -76,7 +76,7 @@
                     </div>
                     <div class="workspace-project-grid" id="workspace-project-grid" aria-live="polite"></div>
                 </section>
-                <div class="list-toolbar"><div class="list-title"><h2 id="list-heading">Your tasks</h2><span class="task-total" id="visible-count">0</span></div><button class="sort-button" id="sort-button">↕ <span>Due date</span></button></div>
+                <div class="list-toolbar"><div class="list-title"><h2 id="list-heading">Your tasks</h2><span class="task-total" id="visible-count">0</span></div><button class="sort-button" id="sort-button"><span>Due date</span></button></div>
                 <div class="task-list" id="task-list"></div>
             </section>
         </main>
@@ -88,6 +88,7 @@
                 <input type="hidden" name="task_id">
                 <label>What needs to get done?<input name="title" maxlength="160" required placeholder="e.g. Review the project proposal"></label>
                 <label>Notes <span class="optional">optional</span><textarea name="notes" rows="3" maxlength="10000" placeholder="Add a little context…"></textarea></label>
+                <label>Subtasks <span class="optional">optional · one per line</span><textarea name="subtasks" rows="3" placeholder="Add a checklist item…"></textarea></label>
                 <div class="form-row"><label>Project<select name="project_id" required></select></label><label>Due date<input type="datetime-local" name="due_date"></label></div>
                 <div class="form-row"><label>Priority<select name="priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label><label class="modal-check"><input type="checkbox" name="done"> Mark as complete</label></div>
                 <div class="modal-actions"><button type="button" class="button danger-link hidden" id="delete-task">Delete task</button><span></span><button type="button" class="button secondary close-modal">Cancel</button><button type="submit" class="button primary">Save task</button></div>
@@ -97,7 +98,24 @@
     <div class="modal-backdrop hidden" id="project-modal">
         <section class="modal-card compact" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
             <div class="modal-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h2 id="project-modal-title">New project</h2></div><button class="icon-button close-modal" aria-label="Close">×</button></div>
-            <form id="project-form"><input type="hidden" name="project_id"><label>Project name<input name="name" maxlength="80" required placeholder="e.g. Product launch"></label><label>Project color<input class="color-input" type="color" name="color" value="#8977f8"></label><div class="modal-actions"><button type="button" class="button danger-link hidden" id="delete-project">Delete</button><span></span><button type="button" class="button secondary close-modal">Cancel</button><button type="submit" class="button primary">Save project</button></div></form>
+            <form id="project-form">
+                <input type="hidden" name="project_id">
+                <label>Project name<input name="name" maxlength="80" required placeholder="e.g. Product launch"></label>
+                <label>Description <span class="optional">optional</span><textarea name="description" rows="3" maxlength="1000" placeholder="What is this project about?"></textarea></label>
+                <label>Project color<input class="color-input" type="color" name="color" value="#8977f8"></label>
+                <fieldset class="project-icon-picker">
+                    <legend>Project icon</legend>
+                    <input type="hidden" name="icon" value="icon1.png">
+                    <div class="project-icon-options">
+                        @foreach ($projectIcons as $icon)
+                            <button class="project-icon-option {{ $icon === 'icon1.png' ? 'is-selected' : '' }}" type="button" data-project-icon="{{ $icon }}" aria-label="Choose project icon {{ pathinfo($icon, PATHINFO_FILENAME) }}" aria-pressed="{{ $icon === 'icon1.png' ? 'true' : 'false' }}">
+                                <img src="{{ asset('images/icon-new-project/'.$icon) }}" alt="" loading="lazy">
+                            </button>
+                        @endforeach
+                    </div>
+                </fieldset>
+                <div class="modal-actions"><button type="button" class="button danger-link hidden" id="delete-project">Delete</button><span></span><button type="button" class="button secondary close-modal">Cancel</button><button type="submit" class="button primary">Save project</button></div>
+            </form>
         </section>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

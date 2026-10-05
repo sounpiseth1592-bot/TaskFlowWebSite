@@ -440,7 +440,7 @@ if (page.classList.contains('app-page')) {
         els.project_nav.innerHTML = state.projects.length ? state.projects.map(project => `
             <div class="project-row">
                 <a class="nav-item project-item ${activeProject?.id === project.id ? 'active' : ''}" data-project="${project.id}" href="${page.dataset.projectUrlTemplate.replace('__PROJECT_ID__', encodeURIComponent(project.id))}">
-                    <span class="project-dot" style="background:${safe(project.color)}"></span>
+                    <img class="project-icon" src="/images/icon-new-project/${encodeURIComponent(project.icon || 'icon1.png')}" alt="">
                     <span>${safe(project.name)}</span><span class="nav-count">${state.tasks.filter(task => Number(task.project_id) === Number(project.id) && !task.done).length}</span>
                 </a>
                 <button class="icon-button project-edit" data-edit-project="${project.id}" aria-label="Edit ${safe(project.name)}">···</button>
@@ -455,13 +455,13 @@ if (page.classList.contains('app-page')) {
             return `<article class="workspace-project-card">
                 <a class="workspace-project-link" data-project="${project.id}" href="${projectUrl}">
                     <span class="workspace-project-accent" style="background:${safe(project.color)}"></span>
-                    <span class="workspace-project-copy"><strong>${safe(project.name)}</strong><small>${projectTasks.length} ${projectTasks.length === 1 ? 'task' : 'tasks'} · ${completedTasks} complete</small></span>
-                    <span class="workspace-project-arrow" aria-hidden="true">↗</span>
+                    <img class="workspace-project-icon" src="/images/icon-new-project/${encodeURIComponent(project.icon || 'icon1.png')}" alt="">
+                    <span class="workspace-project-copy"><strong>${safe(project.name)}</strong><small>${projectTasks.length} ${projectTasks.length === 1 ? 'task' : 'tasks'} · ${completedTasks} complete</small>${project.description ? `<small class="workspace-project-description">${safe(project.description)}</small>` : ''}</span>
                 </a>
                 <div class="workspace-progress" role="progressbar" aria-label="${safe(project.name)} completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}">
                     <span style="width:${completion}%;background:${safe(project.color)}"></span>
                 </div>
-                <div class="workspace-project-footer"><span>${completion}% complete</span><a data-project="${project.id}" href="${projectUrl}">View tasks <span aria-hidden="true">→</span></a></div>
+                <div class="workspace-project-footer"><span>${completion}% complete</span><a data-project="${project.id}" href="${projectUrl}">View tasks</a></div>
             </article>`;
         }).join('') : `<div class="workspace-project-empty">
             <span class="workspace-empty-mark" aria-hidden="true">＋</span>
@@ -473,7 +473,7 @@ if (page.classList.contains('app-page')) {
         const title = activeProject?.name || titles[state.filter][0];
         els.page_title.textContent = title;
         els.current_section.textContent = title;
-        els.page_subtitle.textContent = activeProject ? 'Everything you’re moving forward.' : titles[state.filter][1];
+        els.page_subtitle.textContent = activeProject ? (activeProject.description || 'Everything you’re moving forward.') : titles[state.filter][1];
         els.list_heading.textContent = activeProject ? 'Project tasks' : titles[state.filter][2];
         document.querySelectorAll('.main-nav .nav-item').forEach(button => button.classList.toggle('active', !activeProject && button.dataset.filter === state.filter));
 
@@ -498,7 +498,7 @@ if (page.classList.contains('app-page')) {
             const [emptyTitle, emptyDescription, emptyIcon] = activeProject
                 ? ['No project tasks yet', 'Add a task to get this project moving.', '✦']
                 : emptyMessages[state.filter];
-            els.task_list.innerHTML = `<div class="empty-state"><div class="empty-illustration">${emptyIcon}</div><h3>${emptyTitle}</h3><p>${emptyDescription}</p><button class="button primary" id="empty-add-task">＋ Add a task</button></div>`;
+            els.task_list.innerHTML = `<div class="empty-state"><div class="empty-illustration">${emptyIcon}</div><h3>${emptyTitle}</h3><p>${emptyDescription}</p><button class="button primary" id="empty-add-task">Add a task</button></div>`;
         } else {
             els.task_list.setAttribute('aria-busy', 'false');
             els.task_list.innerHTML = visible.map(task => {
@@ -506,9 +506,13 @@ if (page.classList.contains('app-page')) {
                 const due = dateLabel(task.due_date);
                 const late = task.due_date && dateKey(task.due_date) < today && !task.done;
                 const dueToday = dateKey(task.due_date) === today && !task.done;
+                const subtasks = task.subtasks || [];
                 return `<article class="task-row ${task.done ? 'is-done' : ''}" data-task-row="${task.id}">
                     <input class="task-check" type="checkbox" ${task.done ? 'checked' : ''} aria-label="Complete ${safe(task.title)}">
-                    <div class="task-main" data-edit-task="${task.id}"><span class="task-title">${safe(task.title)}</span>${task.notes ? `<span class="task-notes">${safe(task.notes)}</span>` : ''}</div>
+                    <div class="task-main">
+                        <div class="task-detail" data-edit-task="${task.id}"><span class="task-title">${safe(task.title)}</span>${task.notes ? `<span class="task-notes">${safe(task.notes)}</span>` : ''}</div>
+                        ${subtasks.length ? `<ul class="task-subtasks">${subtasks.map((subtask, index) => `<li><label><input class="subtask-check" type="checkbox" data-subtask-index="${index}" ${subtask.done ? 'checked' : ''} aria-label="Complete subtask ${safe(subtask.title)}"><span class="${subtask.done ? 'is-done' : ''}">${safe(subtask.title)}</span></label></li>`).join('')}</ul>` : ''}
+                    </div>
                     <div class="task-meta">${!activeProject && project ? `<span class="project-tag"><i class="project-dot" style="background:${safe(project.color)}"></i>${safe(project.name)}</span>` : ''}${due ? `<span class="task-due ${late ? 'late' : dueToday ? 'today' : ''}">${safe(due)}</span>` : ''}<i class="priority-dot ${safe(task.priority)}" title="${safe(task.priority)} priority"></i><button class="icon-button row-more" data-edit-task="${task.id}" aria-label="Edit ${safe(task.title)}">···</button></div>
                 </article>`;
             }).join('');
@@ -652,6 +656,16 @@ if (page.classList.contains('app-page')) {
             done: data.has('done'),
         };
         const existing = state.tasks.find(task => String(task.id) === String(id));
+        const previousSubtasks = existing?.subtasks || [];
+        body.subtasks = String(data.get('subtasks') || '')
+            .split(/\r?\n/)
+            .map(title => title.trim())
+            .filter(Boolean)
+            .slice(0, 50)
+            .map(title => ({
+                title,
+                done: previousSubtasks.find(subtask => subtask.title === title)?.done || false,
+            }));
         const previousProjectId = existing?.project_id || projectId;
         try {
             if (!navigator.onLine || String(id).startsWith('local-')) {
@@ -685,6 +699,7 @@ if (page.classList.contains('app-page')) {
         form.elements.task_id.value = task?.id || '';
         form.elements.title.value = task?.title || '';
         form.elements.notes.value = task?.notes || '';
+        form.elements.subtasks.value = (task?.subtasks || []).map(subtask => subtask.title).join('\n');
         form.elements.project_id.value = String(task?.project_id || state.projectId || state.projects[0].id);
         form.elements.due_date.value = localDate(task?.due_date);
         form.elements.priority.value = task?.priority || 'medium';
@@ -700,6 +715,13 @@ if (page.classList.contains('app-page')) {
         els.project_form.elements.project_id.value = project?.id || '';
         els.project_form.elements.name.value = project?.name || '';
         els.project_form.elements.color.value = project?.color || '#8977f8';
+        els.project_form.elements.description.value = project?.description || '';
+        els.project_form.elements.icon.value = project?.icon || 'icon1.png';
+        document.querySelectorAll('[data-project-icon]').forEach(button => {
+            const isSelected = button.dataset.projectIcon === els.project_form.elements.icon.value;
+            button.classList.toggle('is-selected', isSelected);
+            button.setAttribute('aria-pressed', String(isSelected));
+        });
         document.getElementById('project-modal-title').textContent = project ? 'Edit project' : 'New project';
         document.getElementById('delete-project').classList.toggle('hidden', !project);
         els.project_modal.classList.remove('hidden');
@@ -753,6 +775,27 @@ if (page.classList.contains('app-page')) {
     document.getElementById('new-task-side').addEventListener('click', () => openTask());
     els.task_list.addEventListener('click', async event => {
         if (event.target.id === 'empty-add-task') return openTask();
+        const subtaskCheck = event.target.closest('.subtask-check');
+        if (subtaskCheck) {
+            const row = subtaskCheck.closest('[data-task-row]');
+            const task = state.tasks.find(item => String(item.id) === row.dataset.taskRow);
+            if (!task) return;
+            const subtasks = [...(task.subtasks || [])];
+            const index = Number(subtaskCheck.dataset.subtaskIndex);
+            subtasks[index] = { ...subtasks[index], done: subtaskCheck.checked };
+            try {
+                if (!navigator.onLine || String(task.id).startsWith('local-')) {
+                    await enqueue(task.project_id, 'PATCH', task.id, { subtasks });
+                } else {
+                    await api(`/projects/${task.project_id}/tasks/${task.id}`, 'PATCH', { subtasks });
+                    await cacheRemote();
+                }
+            } catch (error) {
+                render();
+                notify(error.message);
+            }
+            return;
+        }
         const check = event.target.closest('.task-check');
         if (check) {
             const row = check.closest('[data-task-row]');
@@ -788,6 +831,14 @@ if (page.classList.contains('app-page')) {
     });
     document.getElementById('add-project').addEventListener('click', () => openProject());
     document.getElementById('dashboard-add-project').addEventListener('click', () => openProject());
+    document.querySelectorAll('[data-project-icon]').forEach(button => button.addEventListener('click', () => {
+        els.project_form.elements.icon.value = button.dataset.projectIcon;
+        document.querySelectorAll('[data-project-icon]').forEach(option => {
+            const isSelected = option === button;
+            option.classList.toggle('is-selected', isSelected);
+            option.setAttribute('aria-pressed', String(isSelected));
+        });
+    }));
     els.workspace_project_grid.addEventListener('click', event => {
         if (event.target.closest('[data-dashboard-add-project]')) openProject();
     });
@@ -795,7 +846,12 @@ if (page.classList.contains('app-page')) {
         event.preventDefault();
         const form = new FormData(els.project_form);
         const id = form.get('project_id');
-        const body = { name: form.get('name').trim(), color: form.get('color') };
+        const body = {
+            name: form.get('name').trim(),
+            color: form.get('color'),
+            description: form.get('description').trim() || null,
+            icon: form.get('icon'),
+        };
         try {
             if (!navigator.onLine) throw new Error('Projects can only be changed while online.');
             if (id) await api(`/projects/${id}`, 'PATCH', body);

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['project_id', 'title', 'notes', 'due_date', 'priority', 'done'])]
+#[Fillable(['project_id', 'title', 'notes', 'due_date', 'priority', 'done', 'subtasks'])]
 class Task extends Model
 {
     protected function casts(): array
@@ -14,6 +14,7 @@ class Task extends Model
         return [
             'due_date' => 'datetime',
             'done' => 'boolean',
+            'subtasks' => 'array',
         ];
     }
 

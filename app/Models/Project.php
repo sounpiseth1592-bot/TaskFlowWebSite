@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'name', 'color'])]
+#[Fillable(['user_id', 'name', 'color', 'description', 'icon'])]
 class Project extends Model
 {
     public function user(): BelongsTo

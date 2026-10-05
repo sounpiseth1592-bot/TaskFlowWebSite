@@ -31,6 +31,9 @@ class PublicUserResource extends JsonResource
                     'id' => $project->id,
                     'name' => $project->name,
                     'color' => $project->color,
+                    'description' => $project->description,
+                    'icon' => $project->icon,
+                    'icon_url' => asset('images/icon-new-project/'.$project->icon),
                     'tasks' => $project->tasks->map(
                         fn (Task $task): array => [
                             'id' => $task->id,
@@ -39,6 +42,7 @@ class PublicUserResource extends JsonResource
                             'due_date' => $task->due_date?->toISOString(),
                             'priority' => $task->priority,
                             'done' => $task->done,
+                            'subtasks' => $task->subtasks ?? [],
                         ],
                     ),
                 ],

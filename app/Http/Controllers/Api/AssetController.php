@@ -68,12 +68,22 @@ class AssetController extends Controller
             array_keys(self::workspaceIconPaths()),
             array_values(self::workspaceIconPaths()),
         );
+        $projectIconPaths = glob(public_path('images/icon-new-project/*.png')) ?: [];
+        sort($projectIconPaths, SORT_NATURAL);
+        $projectIcons = array_map(
+            fn (string $path): array => [
+                'name' => basename($path),
+                'url' => asset('images/icon-new-project/'.basename($path)),
+            ],
+            $projectIconPaths,
+        );
 
         return response()->json([
             'data' => [
                 'avatars' => $avatars,
                 'icons' => $icons,
                 'workspace' => $workspace,
+                'project_icons' => $projectIcons,
                 'images' => [
                     'welcome' => asset('images/taskflow-welcome.jpg'),
                     'favicon' => asset('favicon.ico'),

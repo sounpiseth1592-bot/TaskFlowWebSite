@@ -252,12 +252,18 @@ class TaskFlowTest extends TestCase
         $firstProject = $firstUser->projects()->create([
             'name' => 'Public project',
             'color' => '#654321',
+            'description' => 'A project description.',
+            'icon' => 'icon16.png',
         ]);
         $firstTask = $firstProject->tasks()->create([
             'title' => 'Public task',
             'notes' => 'Task details',
             'priority' => 'high',
             'done' => true,
+            'subtasks' => [
+                ['title' => 'First checklist item', 'done' => true],
+                ['title' => 'Second checklist item', 'done' => false],
+            ],
         ]);
 
         $secondUser = User::factory()->create(['name' => 'Another User']);
@@ -282,11 +288,17 @@ class TaskFlowTest extends TestCase
             ->assertJsonPath('data.0.projects.0.id', $firstProject->id)
             ->assertJsonPath('data.0.projects.0.name', 'Public project')
             ->assertJsonPath('data.0.projects.0.color', '#654321')
+            ->assertJsonPath('data.0.projects.0.description', 'A project description.')
+            ->assertJsonPath('data.0.projects.0.icon', 'icon16.png')
+            ->assertJsonPath('data.0.projects.0.icon_url', asset('images/icon-new-project/icon16.png'))
             ->assertJsonPath('data.0.projects.0.tasks.0.id', $firstTask->id)
             ->assertJsonPath('data.0.projects.0.tasks.0.title', 'Public task')
             ->assertJsonPath('data.0.projects.0.tasks.0.notes', 'Task details')
             ->assertJsonPath('data.0.projects.0.tasks.0.priority', 'high')
             ->assertJsonPath('data.0.projects.0.tasks.0.done', true)
+            ->assertJsonPath('data.0.projects.0.tasks.0.subtasks.0.title', 'First checklist item')
+            ->assertJsonPath('data.0.projects.0.tasks.0.subtasks.0.done', true)
+            ->assertJsonPath('data.0.projects.0.tasks.0.subtasks.1.title', 'Second checklist item')
             ->assertJsonPath('data.1.id', $secondUser->id)
             ->assertJsonPath('data.1.email', $secondUser->email)
             ->assertJsonPath('data.1.description', null)
@@ -822,9 +834,9 @@ class TaskFlowTest extends TestCase
         $this->assertSame(asset('images/icons/people13.png'), $user->fresh()->profilePhotoUrl());
     }
 
-    public function test_api_assets_include_every_avatar_and_app_icon_url(): void
+    public function test_api_assets_include_all_avatar_project_and_app_icon_urls(): void
     {
-        $this->getJson('/api/assets')
+        $response = $this->getJson('/api/assets')
             ->assertOk()
             ->assertJsonCount(13, 'data.avatars')
             ->assertJsonPath('data.avatars.12.name', 'people13')
@@ -838,6 +850,17 @@ class TaskFlowTest extends TestCase
             ->assertJsonPath('data.images.welcome', asset('images/taskflow-welcome.jpg'))
             ->assertJsonPath('data.images.favicon', asset('favicon.ico'))
             ->assertJsonPath('data.app_icon', asset('taskflow-icon.svg'));
+
+        $projectIconPaths = glob(public_path('images/icon-new-project/*.png')) ?: [];
+        $response->assertJsonCount(count($projectIconPaths), 'data.project_icons');
+
+        foreach ($projectIconPaths as $projectIconPath) {
+            $iconName = basename($projectIconPath);
+            $response->assertJsonFragment([
+                'name' => $iconName,
+                'url' => asset('images/icon-new-project/'.$iconName),
+            ]);
+        }
     }
 
     public function test_api_registration_returns_a_token_for_creating_workspace_data(): void
@@ -1115,6 +1138,62 @@ class TaskFlowTest extends TestCase
         $this->assertDatabaseMissing('projects', ['name' => 'Invalid project color']);
     }
 
+    public function test_api_project_creation_persists_description_and_an_available_icon(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test-api')->plainTextToken;
+
+        $this->withToken($token)->postJson('/api/projects', [
+            'name' => 'Product launch',
+            'description' => 'Coordinate the launch.',
+            'icon' => 'icon16.png',
+        ])->assertCreated()
+            ->assertJsonPath('data.name', 'Product launch')
+            ->assertJsonPath('data.description', 'Coordinate the launch.')
+            ->assertJsonPath('data.icon', 'icon16.png');
+
+        $this->assertDatabaseHas('projects', [
+            'user_id' => $user->id,
+            'name' => 'Product launch',
+            'description' => 'Coordinate the launch.',
+            'icon' => 'icon16.png',
+        ]);
+    }
+
+    public function test_api_project_creation_rejects_an_icon_outside_the_project_icon_folder(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test-api')->plainTextToken;
+
+        $this->withToken($token)->postJson('/api/projects', [
+            'name' => 'Invalid icon project',
+            'icon' => '../people13.png',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('icon');
+
+        $this->assertDatabaseMissing('projects', ['name' => 'Invalid icon project']);
+    }
+
+    public function test_a_user_can_update_a_project_description_and_icon(): void
+    {
+        $user = User::factory()->create();
+        $project = $user->projects()->create(['name' => 'Product launch']);
+        $token = $user->createToken('test-api')->plainTextToken;
+
+        $this->withToken($token)->patchJson("/api/projects/{$project->id}", [
+            'description' => 'Launch details.',
+            'icon' => 'icon29.png',
+        ])->assertOk()
+            ->assertJsonPath('data.description', 'Launch details.')
+            ->assertJsonPath('data.icon', 'icon29.png');
+
+        $this->assertDatabaseHas('projects', [
+            'id' => $project->id,
+            'description' => 'Launch details.',
+            'icon' => 'icon29.png',
+        ]);
+    }
+
     public function test_api_project_data_requires_a_token_and_is_scoped_to_the_authenticated_user(): void
     {
         $user = User::factory()->create();
@@ -1183,6 +1262,45 @@ class TaskFlowTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.title', 'Plan the week');
+    }
+
+    public function test_a_user_can_create_a_task_with_subtasks(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::create(['user_id' => $user->id, 'name' => 'Personal']);
+        $token = $user->createToken('test-api')->plainTextToken;
+
+        $this->withToken($token)->postJson("/api/projects/{$project->id}/tasks", [
+            'title' => 'Plan the week',
+            'subtasks' => [
+                ['title' => 'Review calendar', 'done' => false],
+                ['title' => 'Set priorities', 'done' => true],
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('data.title', 'Plan the week')
+            ->assertJsonPath('data.subtasks.0.title', 'Review calendar')
+            ->assertJsonPath('data.subtasks.1.done', true);
+
+        $this->assertDatabaseHas('tasks', [
+            'project_id' => $project->id,
+            'title' => 'Plan the week',
+            'subtasks' => '[{"title":"Review calendar","done":false},{"title":"Set priorities","done":true}]',
+        ]);
+    }
+
+    public function test_a_user_cannot_create_a_task_with_an_invalid_subtask_title(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::create(['user_id' => $user->id, 'name' => 'Personal']);
+        $token = $user->createToken('test-api')->plainTextToken;
+
+        $this->withToken($token)->postJson("/api/projects/{$project->id}/tasks", [
+            'title' => 'Plan the week',
+            'subtasks' => [['title' => str_repeat('a', 161), 'done' => false]],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('subtasks.0.title');
+
+        $this->assertDatabaseMissing('tasks', ['title' => 'Plan the week']);
     }
 
     public function test_a_user_can_read_a_project_and_its_task(): void

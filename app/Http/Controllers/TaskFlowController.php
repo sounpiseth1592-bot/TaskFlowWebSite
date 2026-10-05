@@ -61,6 +61,7 @@ class TaskFlowController extends Controller
             'workspaceFilter' => $filter,
             'workspaceProject' => $project,
             'workspaceIcons' => AssetController::workspaceIconUrls(),
+            'projectIcons' => $this->projectIconNames(),
             'projectUrlTemplate' => route('workspace.projects.show', ['project' => '__PROJECT_ID__']),
         ]);
     }
@@ -317,6 +318,8 @@ class TaskFlowController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'color' => ['sometimes', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'icon' => ['sometimes', 'required', 'string', Rule::in($this->projectIconNames())],
         ]);
 
         $project = Auth::user()->projects()->create($data);
@@ -342,6 +345,8 @@ class TaskFlowController extends Controller
         $project->update($request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:80'],
             'color' => ['sometimes', 'required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'icon' => ['sometimes', 'required', 'string', Rule::in($this->projectIconNames())],
         ]));
 
         return response()->json(['data' => $project->fresh()]);
@@ -511,8 +516,22 @@ class TaskFlowController extends Controller
             'due_date' => ['sometimes', 'nullable', 'date'],
             'priority' => ['sometimes', 'required', Rule::in(['low', 'medium', 'high'])],
             'done' => ['sometimes', 'boolean'],
+            'subtasks' => ['sometimes', 'nullable', 'array', 'max:50'],
+            'subtasks.*.title' => ['required', 'string', 'max:160'],
+            'subtasks.*.done' => ['sometimes', 'boolean'],
             'project_id' => ['sometimes', 'required', Rule::exists('projects', 'id')->where('user_id', Auth::id())],
         ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function projectIconNames(): array
+    {
+        $icons = glob(public_path('images/icon-new-project/*.png')) ?: [];
+        sort($icons, SORT_NATURAL);
+
+        return array_map('basename', $icons);
     }
 
     private function applyDueFilter($query, ?string $filter): void
