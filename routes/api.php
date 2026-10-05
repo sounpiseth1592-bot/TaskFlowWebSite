@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/assets', AssetController::class);
+Route::get('/project-icons', [AssetController::class, 'projectIcons'])->name('api.project_icons.index');
 Route::get('/users', [UserController::class, 'index']);
 Route::get('/admins', [UserController::class, 'adminProfile'])->name('api.admins.show');
 Route::get('/auth/google', [TaskFlowController::class, 'redirectToGoogleApi'])->name('api.google.redirect');

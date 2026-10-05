@@ -528,10 +528,7 @@ class TaskFlowController extends Controller
      */
     private function projectIconNames(): array
     {
-        $icons = glob(public_path('images/icon-new-project/*.png')) ?: [];
-        sort($icons, SORT_NATURAL);
-
-        return array_map('basename', $icons);
+        return array_column(AssetController::projectIconAssets(), 'name');
     }
 
     private function applyDueFilter($query, ?string $filter): void

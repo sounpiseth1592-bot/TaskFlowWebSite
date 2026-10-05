@@ -9,6 +9,34 @@ use Illuminate\Http\JsonResponse;
 class AssetController extends Controller
 {
     /**
+     * @return list<array{name: string, url: string}>
+     */
+    public static function projectIconAssets(): array
+    {
+        $supportedExtensions = ['gif', 'jpeg', 'jpg', 'png', 'svg', 'webp'];
+        $iconPaths = glob(public_path('images/icon-new-project/*')) ?: [];
+        $iconPaths = array_filter(
+            $iconPaths,
+            fn (string $path): bool => is_file($path)
+                && in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $supportedExtensions, true),
+        );
+        sort($iconPaths, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return array_map(
+            fn (string $path): array => [
+                'name' => basename($path),
+                'url' => asset('images/icon-new-project/'.basename($path)),
+            ],
+            $iconPaths,
+        );
+    }
+
+    public function projectIcons(): JsonResponse
+    {
+        return response()->json(['data' => self::projectIconAssets()]);
+    }
+
+    /**
      * @return array<string, string>
      */
     public static function workspaceIconPaths(): array
@@ -68,22 +96,13 @@ class AssetController extends Controller
             array_keys(self::workspaceIconPaths()),
             array_values(self::workspaceIconPaths()),
         );
-        $projectIconPaths = glob(public_path('images/icon-new-project/*.png')) ?: [];
-        sort($projectIconPaths, SORT_NATURAL);
-        $projectIcons = array_map(
-            fn (string $path): array => [
-                'name' => basename($path),
-                'url' => asset('images/icon-new-project/'.basename($path)),
-            ],
-            $projectIconPaths,
-        );
 
         return response()->json([
             'data' => [
                 'avatars' => $avatars,
                 'icons' => $icons,
                 'workspace' => $workspace,
-                'project_icons' => $projectIcons,
+                'project_icons' => self::projectIconAssets(),
                 'images' => [
                     'welcome' => asset('images/taskflow-welcome.jpg'),
                     'favicon' => asset('favicon.ico'),

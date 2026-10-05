@@ -348,7 +348,10 @@ class TaskFlowTest extends TestCase
             $this->assertSame($expected['url'], route($routeName, absolute: false));
             $this->get(route($routeName))
                 ->assertOk()
-                ->assertSee('data-workspace-filter="'.$expected['filter'].'"', false);
+                ->assertSee('data-workspace-filter="'.$expected['filter'].'"', false)
+                ->assertSee('data-filter="'.$expected['filter'].'"', false)
+                ->assertSee('href="'.route($routeName).'" data-filter="'.$expected['filter'].'"', false)
+                ->assertSee('id="count-done"', false);
         }
 
         $this->assertSame('/profile', route('profile.show', absolute: false));
@@ -861,6 +864,21 @@ class TaskFlowTest extends TestCase
                 'url' => asset('images/icon-new-project/'.$iconName),
             ]);
         }
+    }
+
+    public function test_public_project_icon_api_returns_every_picker_image(): void
+    {
+        $this->getJson('/api/project-icons')
+            ->assertOk()
+            ->assertJsonCount(182, 'data')
+            ->assertJsonFragment([
+                'name' => 'icon1.png',
+                'url' => asset('images/icon-new-project/icon1.png'),
+            ])
+            ->assertJsonFragment([
+                'name' => 'pencil.png',
+                'url' => asset('images/icon-new-project/pencil.png'),
+            ]);
     }
 
     public function test_api_registration_returns_a_token_for_creating_workspace_data(): void

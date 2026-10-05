@@ -295,7 +295,7 @@ if (page.classList.contains('app-page')) {
     const state = {
         projects: [],
         tasks: [],
-        filter: page.dataset.workspaceFilter || 'all',
+        filter: filters.includes(page.dataset.workspaceFilter) ? page.dataset.workspaceFilter : 'all',
         projectId: page.dataset.workspaceProjectId ? Number(page.dataset.workspaceProjectId) : null,
         sortAsc: true,
         initialLoading: true,
@@ -342,7 +342,7 @@ if (page.classList.contains('app-page')) {
     };
     const els = Object.fromEntries([
         'project-nav', 'task-list', 'page-title', 'page-subtitle', 'date-label', 'list-heading', 'visible-count',
-        'count-all', 'count-today', 'count-overdue', 'overview-projects', 'overview-all', 'overview-open',
+        'count-all', 'count-today', 'count-overdue', 'count-done', 'overview-projects', 'overview-all', 'overview-open',
         'overview-today', 'overview-overdue', 'overview-done', 'workspace-dashboard', 'workspace-project-grid',
         'sync-status', 'task-modal', 'project-modal', 'task-form', 'project-form', 'toast',
         'current-section',
@@ -424,9 +424,10 @@ if (page.classList.contains('app-page')) {
         const lateCount = tasks.filter(task => !task.done && task.due_date && dateKey(task.due_date) < today).length;
         const doneCount = tasks.filter(task => task.done).length;
         const openCount = tasks.length - doneCount;
-        els.count_all.textContent = String(tasks.filter(task => !task.done).length);
+        els.count_all.textContent = String(tasks.length);
         els.count_today.textContent = String(todayCount);
         els.count_overdue.textContent = String(lateCount);
+        els.count_done.textContent = String(doneCount);
         els.overview_projects.textContent = String(state.projects.length);
         els.overview_all.textContent = String(tasks.length);
         els.overview_open.textContent = String(openCount);
@@ -524,8 +525,22 @@ if (page.classList.contains('app-page')) {
         });
     }
 
-    async function cacheRemote() {
+    async function cacheRemote({ showCached = false } = {}) {
         setSyncStatus('Syncing…', 'syncing');
+        if (showCached) {
+            try {
+                const [cachedProjects, cachedTasks] = await Promise.all([all('projects'), all('tasks')]);
+                if (cachedProjects.length || cachedTasks.length) {
+                    state.projects = cachedProjects;
+                    state.tasks = cachedTasks;
+                    state.initialLoading = false;
+                    render();
+                }
+            } catch (error) {
+                console.error('Could not restore cached workspace data:', error);
+            }
+        }
+
         try {
             const [projectResult, taskResult] = await Promise.all([api('/projects'), api('/tasks')]);
             state.projects = projectResult.data;
@@ -758,9 +773,69 @@ if (page.classList.contains('app-page')) {
         });
     }
 
-    document.querySelectorAll('.main-nav [data-filter]').forEach(link => link.addEventListener('click', () => {
+    const filterLinks = [...document.querySelectorAll('.main-nav [data-filter]')];
+    const projectRouteTemplate = new URL(page.dataset.projectUrlTemplate);
+    const projectRouteMarker = '__PROJECT_ID__';
+    const projectRouteMarkerIndex = projectRouteTemplate.pathname.indexOf(projectRouteMarker);
+    const projectRoutePrefix = projectRouteMarkerIndex === -1
+        ? ''
+        : projectRouteTemplate.pathname.slice(0, projectRouteMarkerIndex);
+
+    function syncWorkspaceLocation() {
+        const currentPath = window.location.pathname;
+        const matchingFilter = filterLinks.find(link => new URL(link.href).pathname === currentPath);
+
+        if (matchingFilter) {
+            state.filter = matchingFilter.dataset.filter;
+            state.projectId = null;
+            render();
+            return;
+        }
+
+        if (projectRoutePrefix && currentPath.startsWith(projectRoutePrefix)) {
+            const projectId = currentPath.slice(projectRoutePrefix.length).split('/')[0];
+            if (!/^\d+$/.test(projectId)) return;
+
+            state.filter = 'all';
+            state.projectId = Number(projectId);
+            render();
+        }
+    }
+
+    function navigateToProject(projectId) {
+        const projectUrl = page.dataset.projectUrlTemplate.replace(projectRouteMarker, encodeURIComponent(projectId));
+        const projectPath = new URL(projectUrl, window.location.origin).pathname;
+        if (window.location.pathname !== projectPath) {
+            window.history.pushState({}, '', projectUrl);
+        }
+
+        state.filter = 'all';
+        state.projectId = Number(projectId);
+        render();
+    }
+
+    filterLinks.forEach(link => link.addEventListener('click', event => {
+        if (
+            event.button !== 0
+            || event.metaKey
+            || event.ctrlKey
+            || event.shiftKey
+            || event.altKey
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        if (window.location.pathname !== new URL(link.href).pathname) {
+            window.history.pushState({}, '', link.href);
+        }
+
+        state.filter = link.dataset.filter;
+        state.projectId = null;
         document.getElementById('sidebar').classList.remove('open');
+        render();
     }));
+    window.addEventListener('popstate', syncWorkspaceLocation);
     els.project_nav.addEventListener('click', event => {
         const edit = event.target.closest('[data-edit-project]');
         if (edit) {
@@ -769,6 +844,18 @@ if (page.classList.contains('app-page')) {
         }
         const button = event.target.closest('[data-project]');
         if (!button) return;
+        if (
+            event.button !== 0
+            || event.metaKey
+            || event.ctrlKey
+            || event.shiftKey
+            || event.altKey
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        navigateToProject(button.dataset.project);
         document.getElementById('sidebar').classList.remove('open');
     });
     document.getElementById('new-task').addEventListener('click', () => openTask());
@@ -841,6 +928,20 @@ if (page.classList.contains('app-page')) {
     }));
     els.workspace_project_grid.addEventListener('click', event => {
         if (event.target.closest('[data-dashboard-add-project]')) openProject();
+        const projectLink = event.target.closest('a[data-project]');
+        if (
+            !projectLink
+            || event.button !== 0
+            || event.metaKey
+            || event.ctrlKey
+            || event.shiftKey
+            || event.altKey
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        navigateToProject(projectLink.dataset.project);
     });
     els.project_form.addEventListener('submit', async event => {
         event.preventDefault();
@@ -890,7 +991,7 @@ if (page.classList.contains('app-page')) {
     document.body.classList.toggle('dark', localStorage.getItem('taskflow-theme') === 'dark');
     updateThemeButton();
     render();
-    cacheRemote();
+    cacheRemote({ showCached: true });
     scheduleReminders();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(error => console.error('Service worker registration failed:', error));
 }

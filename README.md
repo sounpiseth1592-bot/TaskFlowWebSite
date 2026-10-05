@@ -45,6 +45,7 @@ Then push your branch with `git push origin main`. Alternatively, configure an S
 - Task create, edit, complete, and delete; notes, due dates, and low/medium/high priority.
 - All, today, overdue, and completed filters, plus a light/dark theme.
 - Session-authenticated JSON endpoints: `GET/POST /projects`, `PATCH/DELETE /projects/{id}`, `GET/POST /projects/{id}/tasks`, `PATCH/DELETE /projects/{id}/tasks/{taskId}`, and `GET /tasks?due=today` (also `overdue`, `done`, and `all`).
+- `GET /api/project-icons` returns public `{name, url}` entries for every supported image in `public/images/icon-new-project/`, for use in project icon pickers.
 - Sanctum API endpoints: `GET /api/assets` returns all 13 avatar images, feature/language icons, and brand images; authenticated `/api/user`, `/api/profile`, `/api/projects`, and `/api/tasks` endpoints provide the signed-in user's data and project/task operations. Google sign-in can return a 30-day bearer token and JSON user data by starting at `/auth/google?format=json`. Send that token as `Authorization: Bearer <token>` and revoke it with `POST /api/logout`.
 - Browser task cache and pending task mutations in IndexedDB. Changes sync when the app is online again; project changes require a connection.
 - An installable PWA shell and optional one-hour task reminders through browser notifications.
